@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理后台 - 三花包装仕样书</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .admin-container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .admin-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; }
+        .admin-header h1 { font-size: 24px; }
+        .admin-header a { color: #1890ff; text-decoration: none; }
+        .admin-header a:hover { text-decoration: underline; }
+
+        .spec-list { display: grid; gap: 16px; }
+        .spec-item { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; justify-content: space-between; align-items: center; }
+        .spec-info h3 { font-size: 16px; margin-bottom: 4px; }
+        .spec-info p { color: #666; font-size: 13px; }
+        .spec-actions { display: flex; gap: 8px; }
+        .btn-edit { padding: 6px 16px; background: #1890ff; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
+        .btn-delete { padding: 6px 16px; background: #ff4d4f; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: #fff; border-radius: 12px; padding: 30px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-header h2 { font-size: 20px; }
+        .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #999; }
+        .modal-close:hover { color: #333; }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+        .form-full { grid-column: 1 / -1; }
+
+        .entries-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+        .entries-table th, .entries-table td { padding: 8px 12px; border: 1px solid #e8e8e8; font-size: 13px; }
+        .entries-table th { background: #fafafa; font-weight: 600; }
+        .entries-table input { width: 100%; padding: 6px 8px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 13px; }
+        .btn-remove-row { background: #ff4d4f; color: #fff; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 12px; }
+        .btn-add-row { margin-top: 8px; padding: 6px 16px; background: #52c41a; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
+
+        .btn-save { padding: 10px 24px; background: #1890ff; color: #fff; border: none; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 16px; }
+        .btn-save:hover { background: #096dd9; }
+
+        .image-upload-area { margin-top: 16px; padding: 16px; border: 2px dashed #d9d9d9; border-radius: 8px; }
+        .image-list { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+        .image-thumb { width: 120px; position: relative; }
+        .image-thumb img { width: 100%; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #e8e8e8; }
+        .image-thumb .btn-remove-img { position: absolute; top: -8px; right: -8px; background: #ff4d4f; color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 12px; }
+        .image-thumb p { font-size: 11px; color: #999; text-align: center; margin-top: 4px; }
+
+        .ai-section { background: #f0f5ff; border: 2px solid #91d5ff; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+        .ai-section h3 { color: #1890ff; margin-bottom: 12px; font-size: 15px; }
+        .ai-steps { background: #fff; border-radius: 6px; padding: 12px; margin-bottom: 12px; }
+        .ai-steps p { font-size: 13px; color: #666; margin: 6px 0; }
+        .ai-steps .step-num { display: inline-block; width: 22px; height: 22px; line-height: 22px; text-align: center; background: #1890ff; color: #fff; border-radius: 50%; font-size: 12px; font-weight: 600; margin-right: 6px; }
+        .ai-json-input { width: 100%; min-height: 120px; padding: 10px; border: 1px solid #d9d9d9; border-radius: 6px; font-family: monospace; font-size: 13px; resize: vertical; }
+        .ai-json-input:focus { border-color: #1890ff; outline: none; }
+        .ai-actions { display: flex; gap: 10px; margin-top: 10px; }
+        .btn-ai-parse { padding: 10px 24px; background: #1890ff; color: #fff; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .btn-ai-parse:hover { background: #096dd9; }
+        .btn-ai-parse:disabled { background: #d9d9d9; cursor: not-allowed; }
+        .ai-preview { margin-top: 12px; padding: 12px; background: #f6ffed; border-radius: 6px; border: 1px solid #b7eb8f; display: none; }
+        .ai-preview h4 { font-size: 14px; color: #52c41a; margin-bottom: 8px; }
+        .ai-preview p { font-size: 13px; margin: 4px 0; }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <div class="admin-header">
+            <h1>包装仕样书管理后台</h1>
+            <a href="/">返回查询页面</a>
+        </div>
+
+        <div style="display:flex; gap:12px; margin-bottom:24px; align-items:center;">
+            <button class="btn-search" onclick="openAddModal()">+ 新增仕样书</button>
+            <input type="file" id="quickOcrFile" accept=".png,.jpg,.jpeg,.gif,.bmp" multiple style="display:none;" onchange="quickRecognize()" />
+            <button class="btn-quick" onclick="document.getElementById('quickOcrFile').click()">⚡ 快速识别新增</button>
+            <input type="text" id="quickApiKey" placeholder="Mimo API Key" style="flex:1; max-width:300px; padding:10px 14px; border:2px solid #e8e8e8; border-radius:8px; font-size:14px;" onchange="localStorage.setItem('mimo_api_key', this.value)" />
+        </div>
+
+        <div id="quickProgress" style="display:none; margin-bottom:20px; padding:16px; background:#f0f5ff; border:2px solid #91d5ff; border-radius:8px;">
+            <p id="quickStatus" style="font-size:14px; color:#1890ff; margin:0;"></p>
+        </div>
+
+        <div id="specList" class="spec-list"></div>
+    </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">新增仕样书</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+
+            <input type="hidden" id="editSpecId" />
+
+            <div style="padding:16px; background:#f0f5ff; border:2px solid #91d5ff; border-radius:8px; margin-bottom:20px;">
+                <h3 style="color:#1890ff; margin-bottom:10px;">第一步：上传仕样书图片</h3>
+                <p style="font-size:13px; color:#666; margin-bottom:10px;">选择仕样书图片（支持多张），系统会自动识别并填充下方表单</p>
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:13px; color:#333; display:block; margin-bottom:4px;">Mimo API Key</label>
+                    <input type="text" id="mimoApiKey" placeholder="请输入你的Mimo API Key" style="width:100%; max-width:400px; padding:8px; border:1px solid #d9d9d9; border-radius:4px;" onchange="localStorage.setItem('mimo_api_key', this.value)" />
+                    <p style="font-size:11px; color:#999; margin-top:4px;">获取地址：<a href="https://platform.xiaomimimo.com" target="_blank">platform.xiaomimimo.com</a></p>
+                </div>
+                <input type="file" id="aiOcrFile" accept=".png,.jpg,.jpeg,.gif,.bmp" multiple style="margin-bottom:10px;" />
+                <button class="btn-ai-parse" id="aiOcrBtn" onclick="doAIRecognition()">开始识别</button>
+                <div id="aiOcrProgress" style="display:none; margin-top:10px;">
+                    <div style="background:#e6f7ff; border-radius:4px; padding:10px; margin-bottom:8px;">
+                        <p id="aiOcrStatus" style="font-size:13px; color:#1890ff; margin:0;">准备中...</p>
+                    </div>
+                    <div style="background:#f0f0f0; border-radius:4px; height:8px; overflow:hidden;">
+                        <div id="aiOcrProgressBar" style="background:#1890ff; height:100%; width:0%; transition: width 0.3s;"></div>
+                    </div>
+                </div>
+                <div id="aiOcrResult" style="display:none; margin-top:10px; padding:10px; background:#f6ffed; border-radius:6px; border:1px solid #b7eb8f;">
+                    <p id="aiOcrResultText" style="font-size:13px; color:#333; margin:0;"></p>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>仕样书编号</label>
+                    <input type="text" id="editSpecNumber" placeholder="例如: S-01BS163" />
+                </div>
+                <div class="form-group">
+                    <label>产品型号</label>
+                    <input type="text" id="editProductModel" placeholder="例如: HDF(10/15)HM" />
+                </div>
+            </div>
+
+            <div class="form-group form-full">
+                <label>描述</label>
+                <input type="text" id="editDescription" placeholder="例如: 电磁阀阀体包装仕样书" />
+            </div>
+
+            <h3 style="margin-top: 20px; margin-bottom: 10px;">序号-客户名称-阀体型号 对应关系</h3>
+            <table class="entries-table" id="entriesTable">
+                <thead>
+                    <tr>
+                        <th style="width:60px;">序号</th>
+                        <th>客户名称</th>
+                        <th>阀体型号</th>
+                        <th>特殊包装说明</th>
+                        <th>备注</th>
+                        <th style="width:60px;">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="entriesBody"></tbody>
+            </table>
+            <button class="btn-add-row" onclick="addEntryRow()">+ 添加一行</button>
+
+            <h3 style="margin-top: 20px; margin-bottom: 10px;">仕样书图片</h3>
+            <div class="image-upload-area">
+                <input type="file" id="imageFile" accept=".png,.jpg,.jpeg,.gif,.bmp" />
+                <input type="number" id="imagePageNum" placeholder="页码" value="1" style="width:80px; margin-left:10px; padding:6px;" />
+                <button class="btn-search" onclick="uploadImage()" style="margin-left:10px;">上传图片</button>
+                <div id="imageList" class="image-list"></div>
+            </div>
+
+            <button class="btn-save" onclick="saveSpec()">保存</button>
+        </div>
+    </div>
+
+    <script>
+        let currentImages = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSpecs();
+            // 加载保存的API Key
+            const savedKey = localStorage.getItem('mimo_api_key');
+            if (savedKey) {
+                document.getElementById('quickApiKey').value = savedKey;
+            }
+        });
+
+        function quickRecognize() {
+            const fileInput = document.getElementById('quickOcrFile');
+            const files = Array.from(fileInput.files);
+            if (files.length === 0) return;
+
+            const apiKey = document.getElementById('quickApiKey').value.trim();
+            if (!apiKey) {
+                alert('请先输入Mimo API Key');
+                return;
+            }
+
+            const progress = document.getElementById('quickProgress');
+            const status = document.getElementById('quickStatus');
+            let uploadedImages = [];
+            progress.style.display = 'block';
+            progress.style.background = '#f0f5ff';
+            progress.style.borderColor = '#91d5ff';
+            status.textContent = '正在上传图片...';
+
+            // 上传所有图片
+            const uploadPromises = files.map((file, index) => {
+                const formData = new FormData();
+                formData.append('file', file);
+                return fetch('/api/admin/upload_image', { method: 'POST', body: formData })
+                    .then(res => res.json())
+                    .then(data => {
+                        status.textContent = '正在上传图片 (' + (index + 1) + '/' + files.length + ')...';
+                        return { success: data.success, image_path: data.image_path, file: file };
+                    });
+            });
+
+            Promise.all(uploadPromises)
+                .then(uploadResults => {
+                    const successUploads = uploadResults.filter(r => r.success);
+                    if (successUploads.length === 0) throw new Error('图片上传失败');
+                    uploadedImages = successUploads;
+
+                    status.textContent = '正在压缩图片...';
+
+                    // 压缩所有图片
+                    const compressPromises = successUploads.map(r => compressImage(r.file));
+                    return Promise.all(compressPromises);
+                })
+                .then(compressed => {
+                    status.textContent = '正在转换图片...';
+
+                    // 转换所有图片为base64
+                    const base64Promises = compressed.map(blob => {
+                        return new Promise((resolve) => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(reader.result);
+                            reader.readAsDataURL(blob);
+                        });
+                    });
+                    return Promise.all(base64Promises);
+                })
+                .then(base64Array => {
+                    status.textContent = '正在调用Mimo API识别...';
+
+                    // 构建多图片消息内容
+                    const content = [
+                        { type: 'text', text: '请识别这些仕样书图片（共' + base64Array.length + '张），返回JSON格式结果。每张图可能包含不同页面的内容，请合并所有结果。' }
+                    ];
+                    base64Array.forEach(base64 => {
+                        content.push({ type: 'image_url', image_url: { url: base64 } });
+                    });
+
+                    // 调用Mimo API
+                    return fetch('https://api.xiaomimimo.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + apiKey
+                        },
+                        body: JSON.stringify({
+                            model: 'mimo-v2.5',
+                            messages: [
+                                {
+                                    role: 'system',
+                                    content: '你是一个专业的OCR识别助手。请识别图片中的仕样书内容，返回JSON格式结果。格式：{"spec_number":"仕样书编号","product_model":"产品型号","entries":[{"seq_number":序号,"customer_name":"客户名称","valve_model":"阀体型号","special_note":"特殊包装说明","remark":"备注"}]}。重要规则：1. 如果表格有三列（客户代码、客户型号、三花型号），则"客户名称"用表头的"顾客名称"，"阀体型号"用"三花型号"列；2. 如果表格只有一列阀体型号，则直接使用；3. 如果有多张图片，合并所有识别结果到一个entries数组中，序号从1开始连续编号。只返回JSON，不要其他文字。'
+                                },
+                                {
+                                    role: 'user',
+                                    content: content
+                                }
+                            ],
+                            max_tokens: 8192
+                        })
+                    });
+                })
+                .then(res => {
+                    if (!res.ok) {
+                        return res.text().then(text => {
+                            throw new Error('API请求失败: ' + res.status + ' ' + text);
+                        });
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    status.textContent = '正在解析结果...';
+
+                    if (data.choices && data.choices[0] && data.choices[0].message) {
+                        const content = data.choices[0].message.content;
+                        
+                        // 提取JSON
+                        let jsonStr = content;
+                        const jsonMatch = content.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) {
+                            jsonStr = jsonMatch[0];
+                        }
+
+                        try {
+                            const parsed = JSON.parse(jsonStr);
+
+                            // 自动新增仕样书
+                            const saveData = {
+                                spec_number: parsed.spec_number || '',
+                                product_model: parsed.product_model || '',
+                                description: '',
+                                entries: parsed.entries || []
+                            };
+
+                            return fetch('/api/admin/add_spec', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(saveData)
+                            }).then(res => res.json()).then(result => {
+                                if (result.success) {
+                                    // 绑定所有图片
+                                    const imagePaths = uploadedImages.map(u => u.image_path);
+                                    const bindPromises = imagePaths.map(path => {
+                                        return fetch('/api/admin/bind_image', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ spec_id: result.spec_id, image_path: path })
+                                        });
+                                    });
+                                    return Promise.all(bindPromises).then(() => ({
+                                        success: true,
+                                        spec_number: parsed.spec_number
+                                    }));
+                                } else {
+                                    throw new Error(result.message);
+                                }
+                            });
+                        } catch (e) {
+                            throw new Error('JSON解析失败: ' + e.message);
+                        }
+                    } else {
+                        throw new Error(data.error?.message || '未知错误');
+                    }
+                })
+                .then(result => {
+                    status.textContent = '识别完成！已自动新增仕样书 ' + (result.spec_number || '');
+                    progress.style.background = '#f6ffed';
+                    progress.style.borderColor = '#b7eb8f';
+                    loadSpecs();
+                    fileInput.value = '';
+                    setTimeout(() => {
+                        progress.style.display = 'none';
+                        progress.style.background = '#f0f5ff';
+                        progress.style.borderColor = '#91d5ff';
+                    }, 3000);
+                })
+                .catch(err => {
+                    status.textContent = '识别出错: ' + err.message;
+                    progress.style.background = '#fff2f0';
+                    progress.style.borderColor = '#ffccc7';
+                });
+        }
+
+        function loadSpecs() {
+            fetch('/api/admin/specs')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) renderSpecList(data.data);
+                });
+        }
+
+        function renderSpecList(specs) {
+            const list = document.getElementById('specList');
+            list.innerHTML = specs.map(s => `
+                <div class="spec-item">
+                    <div class="spec-info">
+                        <h3>${s.spec_number} - ${s.product_model}</h3>
+                        <p>${s.description || ''} | ${s.entries_summary || '无条目'}</p>
+                    </div>
+                    <div class="spec-actions">
+                        <button class="btn-edit" onclick="editSpec(${s.id})">编辑</button>
+                        <button class="btn-delete" onclick="deleteSpec(${s.id})">删除</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openAddModal() {
+            document.getElementById('modalTitle').textContent = '新增仕样书';
+            document.getElementById('editSpecId').value = '';
+            document.getElementById('editSpecNumber').value = '';
+            document.getElementById('editProductModel').value = '';
+            document.getElementById('editDescription').value = '';
+            document.getElementById('entriesBody').innerHTML = '';
+            currentImages = [];
+            tempImagePath = '';
+            document.getElementById('imageList').innerHTML = '';
+            document.getElementById('aiOcrFile').value = '';
+            document.getElementById('aiOcrProgress').style.display = 'none';
+            document.getElementById('aiOcrResult').style.display = 'none';
+            
+            // 加载保存的API Key
+            const savedKey = localStorage.getItem('mimo_api_key');
+            if (savedKey) {
+                document.getElementById('mimoApiKey').value = savedKey;
+            }
+            
+            addEntryRow();
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        function editSpec(id) {
+            fetch('/api/admin/spec/' + id)
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) return alert(data.message);
+                    const { spec, entries, images } = data.data;
+                    document.getElementById('modalTitle').textContent = '编辑仕样书';
+                    document.getElementById('editSpecId').value = spec.id;
+                    document.getElementById('editSpecNumber').value = spec.spec_number;
+                    document.getElementById('editProductModel').value = spec.product_model;
+                    document.getElementById('editDescription').value = spec.description;
+
+                    const tbody = document.getElementById('entriesBody');
+                    tbody.innerHTML = '';
+                    entries.forEach(e => addEntryRow(e));
+
+                    currentImages = images;
+                    renderImages();
+                    document.getElementById('editModal').classList.add('active');
+                });
+        }
+
+        function closeModal() {
+            document.getElementById('editModal').classList.remove('active');
+        }
+
+        function addEntryRow(data) {
+            const tbody = document.getElementById('entriesBody');
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input type="number" class="e-seq" value="${data ? data.seq_number : tbody.children.length + 1}" /></td>
+                <td><input type="text" class="e-cust" value="${data ? data.customer_name : ''}" /></td>
+                <td><input type="text" class="e-model" value="${data ? data.valve_model : ''}" /></td>
+                <td><input type="text" class="e-note" value="${data ? (data.special_note || '') : ''}" /></td>
+                <td><input type="text" class="e-remark" value="${data ? (data.remark || '') : ''}" /></td>
+                <td><button class="btn-remove-row" onclick="this.parentElement.parentElement.remove()">删</button></td>
+            `;
+            tbody.appendChild(tr);
+        }
+
+        function saveSpec() {
+            const id = document.getElementById('editSpecId').value;
+            const spec_number = document.getElementById('editSpecNumber').value.trim();
+            const product_model = document.getElementById('editProductModel').value.trim();
+            const description = document.getElementById('editDescription').value.trim();
+
+            if (!spec_number || !product_model) {
+                return alert('请填写仕样书编号和产品型号');
+            }
+
+            const entries = [];
+            document.querySelectorAll('#entriesBody tr').forEach(tr => {
+                const cust = tr.querySelector('.e-cust').value.trim();
+                const model = tr.querySelector('.e-model').value.trim();
+                if (cust && model) {
+                    entries.push({
+                        seq_number: parseInt(tr.querySelector('.e-seq').value) || 0,
+                        customer_name: cust,
+                        valve_model: model,
+                        special_note: tr.querySelector('.e-note').value.trim(),
+                        remark: tr.querySelector('.e-remark').value.trim()
+                    });
+                }
+            });
+
+            const url = id ? '/api/admin/update_spec/' + id : '/api/admin/add_spec';
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ spec_number, product_model, description, entries })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    // 如果有临时图片，绑定到这个仕样书
+                    const newSpecId = data.spec_id || id;
+                    if (tempImagePaths.length > 0 && newSpecId) {
+                        // 绑定所有图片
+                        const bindPromises = tempImagePaths.map(path => {
+                            return fetch('/api/admin/bind_image', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ spec_id: newSpecId, image_path: path })
+                            });
+                        });
+                        Promise.all(bindPromises).then(() => {
+                            tempImagePaths = [];
+                            alert(data.message);
+                            closeModal();
+                            loadSpecs();
+                        });
+                    } else {
+                        alert(data.message);
+                        closeModal();
+                        loadSpecs();
+                    }
+                } else {
+                    alert(data.message);
+                }
+            });
+        }
+
+        function deleteSpec(id) {
+            if (!confirm('确定要删除这个仕样书吗？')) return;
+            fetch('/api/admin/delete_spec/' + id, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) loadSpecs();
+                    alert(data.message);
+                });
+        }
+
+        function uploadImage() {
+            const file = document.getElementById('imageFile').files[0];
+            const specId = document.getElementById('editSpecId').value;
+            const pageNum = document.getElementById('imagePageNum').value;
+
+            if (!file) return alert('请选择图片');
+            if (!specId) return alert('请先保存仕样书后再上传图片');
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('spec_id', specId);
+            formData.append('page_number', pageNum);
+
+            fetch('/api/admin/upload_image', { method: 'POST', body: formData })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        currentImages.push({ id: Date.now(), image_path: data.image_path, page_number: pageNum });
+                        renderImages();
+                        document.getElementById('imageFile').value = '';
+                    } else {
+                        alert(data.message);
+                    }
+                });
+        }
+
+        function renderImages() {
+            const list = document.getElementById('imageList');
+            list.innerHTML = currentImages.map((img, i) => `
+                <div class="image-thumb">
+                    <button class="btn-remove-img" onclick="removeImage(${i}, ${img.id})">&times;</button>
+                    <img src="/${img.image_path}" />
+                    <p>第${img.page_number}页</p>
+                </div>
+            `).join('');
+        }
+
+        let tempImagePaths = [];
+
+        function compressImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        
+                        // 最大宽度1200px
+                        const maxWidth = 1200;
+                        let width = img.width;
+                        let height = img.height;
+                        
+                        if (width > maxWidth) {
+                            height = (maxWidth / width) * height;
+                            width = maxWidth;
+                        }
+                        
+                        canvas.width = width;
+                        canvas.height = height;
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        canvas.toBlob((blob) => {
+                            resolve(blob);
+                        }, 'image/jpeg', 0.8);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function doAIRecognition() {
+            const fileInput = document.getElementById('aiOcrFile');
+            const files = Array.from(fileInput.files);
+            if (files.length === 0) return alert('请选择仕样书图片');
+
+            const apiKey = document.getElementById('mimoApiKey').value.trim();
+            if (!apiKey) return alert('请输入Mimo API Key');
+
+            const btn = document.getElementById('aiOcrBtn');
+            const progress = document.getElementById('aiOcrProgress');
+            const status = document.getElementById('aiOcrStatus');
+            const progressBar = document.getElementById('aiOcrProgressBar');
+            const resultDiv = document.getElementById('aiOcrResult');
+            const resultText = document.getElementById('aiOcrResultText');
+
+            btn.disabled = true;
+            btn.textContent = '识别中...';
+            progress.style.display = 'block';
+            resultDiv.style.display = 'none';
+            status.textContent = '正在上传图片 (0/' + files.length + ')...';
+            progressBar.style.width = '10%';
+
+            // 上传所有图片
+            const uploadPromises = files.map((file, index) => {
+                const formData = new FormData();
+                formData.append('file', file);
+                return fetch('/api/admin/upload_image', { method: 'POST', body: formData })
+                    .then(res => res.json())
+                    .then(data => {
+                        status.textContent = '正在上传图片 (' + (index + 1) + '/' + files.length + ')...';
+                        return { success: data.success, image_path: data.image_path, file: file };
+                    });
+            });
+
+            Promise.all(uploadPromises)
+                .then(uploadResults => {
+                    const successUploads = uploadResults.filter(r => r.success);
+                    if (successUploads.length === 0) throw new Error('图片上传失败');
+
+                    // 保存所有图片路径
+                    tempImagePaths = successUploads.map(r => r.image_path);
+                    progressBar.style.width = '30%';
+                    status.textContent = '正在压缩图片...';
+
+                    // 压缩所有图片
+                    const compressPromises = successUploads.map(r => compressImage(r.file));
+                    return Promise.all(compressPromises);
+                })
+                .then(compressedBlobs => {
+                    progressBar.style.width = '50%';
+                    status.textContent = '正在转换图片...';
+
+                    // 转换所有图片为base64
+                    const base64Promises = compressedBlobs.map(blob => {
+                        return new Promise((resolve) => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(reader.result);
+                            reader.readAsDataURL(blob);
+                        });
+                    });
+                    return Promise.all(base64Promises);
+                })
+                .then(base64Array => {
+                    progressBar.style.width = '60%';
+                    status.textContent = '正在调用Mimo API识别...';
+
+                    // 构建多图片消息内容
+                    const content = [
+                        { type: 'text', text: '请识别这些仕样书图片（共' + base64Array.length + '张），返回JSON格式结果。每张图可能包含不同页面的内容，请合并所有结果。' }
+                    ];
+                    base64Array.forEach(base64 => {
+                        content.push({ type: 'image_url', image_url: { url: base64 } });
+                    });
+
+                    // 调用Mimo API
+                    return fetch('https://api.xiaomimimo.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + apiKey
+                        },
+                        body: JSON.stringify({
+                            model: 'mimo-v2.5',
+                            messages: [
+                                {
+                                    role: 'system',
+                                    content: '你是一个专业的OCR识别助手。请识别图片中的仕样书内容，返回JSON格式结果。格式：{"spec_number":"仕样书编号","product_model":"产品型号","entries":[{"seq_number":序号,"customer_name":"客户名称","valve_model":"阀体型号","special_note":"特殊包装说明","remark":"备注"}]}。重要规则：1. 如果表格有三列（客户代码、客户型号、三花型号），则"客户名称"用表头的"顾客名称"，"阀体型号"用"三花型号"列；2. 如果表格只有一列阀体型号，则直接使用；3. 如果有多张图片，合并所有识别结果到一个entries数组中，序号从1开始连续编号。只返回JSON，不要其他文字。'
+                                },
+                                {
+                                    role: 'user',
+                                    content: content
+                                }
+                            ],
+                            max_tokens: 8192
+                        })
+                    });
+                })
+                .then(res => {
+                    if (!res.ok) {
+                        return res.text().then(text => {
+                            throw new Error('API请求失败: ' + res.status + ' ' + text);
+                        });
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    progressBar.style.width = '80%';
+                    status.textContent = '正在解析结果...';
+
+                    if (data.choices && data.choices[0] && data.choices[0].message) {
+                        const content = data.choices[0].message.content;
+                        
+                        // 提取JSON
+                        let jsonStr = content;
+                        const jsonMatch = content.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) {
+                            jsonStr = jsonMatch[0];
+                        }
+
+                        try {
+                            const parsed = JSON.parse(jsonStr);
+                            
+                            progressBar.style.width = '100%';
+                            status.textContent = '识别完成！共' + tempImagePaths.length + '张图片';
+                            resultDiv.style.display = 'block';
+                            resultText.innerHTML = '识别到 <strong>' + (parsed.entries ? parsed.entries.length : 0) + '</strong> 条记录，图片已上传';
+
+                            // 自动添加所有图片到仕样书图片列表
+                            tempImagePaths.forEach((path, index) => {
+                                currentImages.push({ 
+                                    id: Date.now() + index, 
+                                    image_path: path, 
+                                    page_number: index + 1 
+                                });
+                            });
+                            renderImages();
+
+                            if (parsed.spec_number) {
+                                document.getElementById('editSpecNumber').value = parsed.spec_number;
+                            }
+                            if (parsed.product_model) {
+                                document.getElementById('editProductModel').value = parsed.product_model;
+                            }
+                            if (parsed.entries && parsed.entries.length > 0) {
+                                const tbody = document.getElementById('entriesBody');
+                                tbody.innerHTML = '';
+                                parsed.entries.forEach(entry => addEntryRow(entry));
+                            }
+                        } catch (e) {
+                            status.textContent = 'JSON解析失败: ' + e.message;
+                            progressBar.style.width = '0%';
+                        }
+                    } else {
+                        status.textContent = '识别失败: ' + (data.error?.message || '未知错误');
+                        progressBar.style.width = '0%';
+                    }
+
+                    btn.disabled = false;
+                    btn.textContent = '开始识别';
+                })
+                .catch(err => {
+                    status.textContent = '识别出错: ' + err.message;
+                    progressBar.style.width = '0%';
+                    btn.disabled = false;
+                    btn.textContent = '开始识别';
+                });
+        }
+
+        function parseOCRText(text) {
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+            const result = { spec_number: '', product_model: '', entries: [] };
+
+            for (const line of lines) {
+                let m;
+                if (!result.spec_number && (m = line.match(/仕\s*样\s*书\s*编\s*号[：:\s]*([A-Za-z0-9\-]+)/))) {
+                    result.spec_number = m[1];
+                }
+                if (!result.spec_number && (m = line.match(/编\s*号[：:\s]*([A-Za-z0-9\-]+)/))) {
+                    result.spec_number = m[1];
+                }
+                if (!result.product_model && (m = line.match(/产\s*品\s*型\s*号[：:\s]*(.+)/))) {
+                    result.product_model = m[1].trim();
+                }
+                if (!result.product_model && (m = line.match(/阀\s*体\s*图?\s*号[：:\s]*(.+)/))) {
+                    result.product_model = m[1].trim();
+                }
+            }
+
+            const allText = lines.join('\n');
+            
+            // 格式1: 客户代码-客户型号-三花型号
+            const pattern1 = /([A-Za-z0-9]+)\s*[、.\s]\s*(SV[A-Za-z0-9.\-]+)\s*[、.\s]+(MDF[A-Za-z0-9\-]+)/g;
+            let seq = 1;
+            while ((m = pattern1.exec(allText)) !== null) {
+                result.entries.push({
+                    seq_number: seq++,
+                    customer_name: m[1].trim(),
+                    valve_model: m[3].trim(),
+                    special_note: m[2].trim(),
+                    remark: ''
+                });
+            }
+
+            // 格式2: 序号-客户名称-阀体型号
+            if (result.entries.length === 0) {
+                const pattern2 = /(\d+)\s*[、.\s]\s*([^\d\s,，]+?)\s*[、.\s,\s，]+([A-Za-z0-9\-]+)/g;
+                while ((m = pattern2.exec(allText)) !== null) {
+                    const s = parseInt(m[1]);
+                    const cust = m[2].trim();
+                    const model = m[3].trim();
+                    if (s > 0 && cust && model && !/编号|型号|产品|仕样/.test(cust)) {
+                        result.entries.push({
+                            seq_number: s,
+                            customer_name: cust,
+                            valve_model: model,
+                            special_note: '',
+                            remark: ''
+                        });
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        function removeImage(index, id) {
+            if (confirm('确定删除这张图片？')) {
+                fetch('/api/admin/delete_image/' + id, { method: 'POST' })
+                    .then(res => res.json())
+                    .then(() => {
+                        currentImages.splice(index, 1);
+                        renderImages();
+                    });
+            }
+        }
+
+        function parseAIResult() {
+            const input = document.getElementById('aiJsonInput').value.trim();
+            if (!input) return alert('请先粘贴AI返回的JSON结果');
+
+            try {
+                const data = JSON.parse(input);
+                const preview = document.getElementById('aiPreview');
+                const content = document.getElementById('aiPreviewContent');
+                
+                let html = '';
+                if (data.spec_number) {
+                    html += `<p><strong>仕样书编号:</strong> ${data.spec_number}</p>`;
+                }
+                if (data.product_model) {
+                    html += `<p><strong>产品型号:</strong> ${data.product_model}</p>`;
+                }
+                if (data.entries && data.entries.length > 0) {
+                    html += `<p><strong>条目数:</strong> ${data.entries.length} 条</p>`;
+                    html += '<p><strong>前5条预览:</strong></p>';
+                    data.entries.slice(0, 5).forEach(e => {
+                        html += `<p style="margin-left:16px; font-size:12px;">${e.seq_number}. ${e.customer_name} - ${e.valve_model}</p>`;
+                    });
+                    if (data.entries.length > 5) {
+                        html += `<p style="margin-left:16px; font-size:12px; color:#999;">... 还有 ${data.entries.length - 5} 条</p>`;
+                    }
+                }
+                
+                content.innerHTML = html;
+                preview.style.display = 'block';
+
+                if (confirm('确认填充到表单？')) {
+                    if (data.spec_number) {
+                        document.getElementById('editSpecNumber').value = data.spec_number;
+                    }
+                    if (data.product_model) {
+                        document.getElementById('editProductModel').value = data.product_model;
+                    }
+                    if (data.entries && data.entries.length > 0) {
+                        const tbody = document.getElementById('entriesBody');
+                        tbody.innerHTML = '';
+                        data.entries.forEach(entry => addEntryRow(entry));
+                    }
+                    alert('已填充到表单，请检查后保存');
+                }
+            } catch (e) {
+                alert('JSON格式错误: ' + e.message);
+            }
+        }
+    </script>
+</body>
+</html>

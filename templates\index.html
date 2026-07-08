@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>三花包装仕样书查询系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-card">
+                <a href="/admin" class="admin-link">管理后台</a>
+                <h1>三花包装仕样书查询系统</h1>
+                <p class="subtitle">输入阀体型号和顾客名称，快速匹配包装仕样书</p>
+            </div>
+        </header>
+
+        <div class="search-card">
+            <div class="tab-header">
+                <button class="tab-btn active" onclick="switchTab('single')">单条查询</button>
+                <button class="tab-btn" onclick="switchTab('batch')">批量查询</button>
+            </div>
+
+            <div id="singleTab" class="tab-content active">
+                <div class="search-form">
+                    <div class="form-group">
+                        <label for="valveModel">阀体型号</label>
+                        <input type="text" id="valveModel" placeholder="例如: HDF10HM01" />
+                    </div>
+                    <div class="form-group">
+                        <label for="customerName">客户名称</label>
+                        <input type="text" id="customerName" placeholder="例如: 美国三花小包装" />
+                    </div>
+                    <button id="searchBtn" class="btn-search">查询</button>
+                </div>
+            </div>
+
+            <div id="batchTab" class="tab-content">
+                <div class="batch-form">
+                    <div class="form-group">
+                        <label>方式一：手动输入（每行一个，格式：客户名称,阀体型号）</label>
+                        <div class="batch-textarea-wrap">
+                            <div class="line-numbers" id="lineNumbers">1</div>
+                            <textarea id="batchInput" rows="6" placeholder="例如:&#10;美国三花小包装,HDF10HM01&#10;东莞三江,KDF10H01&#10;江苏联孚,KDF15H01&#10;测试客户,TEST001"></textarea>
+                        </div>
+                    </div>
+                    <button id="batchSearchBtn" class="btn-search">批量查询</button>
+
+                    <div class="divider"><span>或者</span></div>
+
+                    <div class="form-group">
+                        <label>方式二：导入Excel文件</label>
+                        <div class="upload-section">
+                            <a href="/api/download_template" class="btn-download">下载模板</a>
+                            <div class="drop-zone" id="dropZone" onclick="document.getElementById('excelFile').click()">
+                                <div class="drop-zone-icon">📄</div>
+                                <div class="drop-zone-text">拖拽Excel文件到此处，或<strong>点击选择文件</strong></div>
+                                <div class="drop-zone-hint">支持 .xlsx / .xls 格式</div>
+                                <div class="drop-zone-file-name" id="fileName"></div>
+                                <input type="file" id="excelFile" accept=".xlsx,.xls" />
+                            </div>
+                            <button id="uploadBtn" class="btn-excel-query">导入并查询</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="resultArea" class="result-area">
+            <div id="noResult" class="no-result" style="display:none;">
+                <div class="no-result-icon">✕</div>
+                <p>无该包装仕样书</p>
+                <div class="no-result-hint">
+                    未找到匹配的记录，请检查输入是否正确，或前往 <a href="/admin">管理后台</a> 新增仕样书
+                </div>
+            </div>
+
+            <div id="resultList" class="result-list" style="display:none;"></div>
+        </div>
+    </div>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>查询中...</p>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=3"></script>
+</body>
+</html>
